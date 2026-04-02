@@ -1,11 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/productController");
+const { protect, adminOnly } = require("../middleware/authMiddleware");
+const upload = require("../middleware/upload"); // Import cổng kiểm duyệt ảnh
 
-// Khai báo 4 đường dẫn (Tương ứng với Thêm - Đọc - Sửa - Xoá)
-router.get("/", productController.getProducts);               // Đọc
-router.post("/", productController.createProduct);            // Thêm
-router.put("/:id", productController.updateProduct);          // Sửa (Cần truyền ID)
-router.delete("/:id", productController.deleteProduct);       // Xoá (Cần truyền ID)
+router.get("/", productController.getProducts);               
+router.get("/:id", productController.getProductById);
+
+// Cho phép upload tối đa 4 ảnh với tên field là 'images'
+router.post("/", protect, adminOnly, upload.array('images', 4), productController.createProduct);            
+router.put("/:id", protect, adminOnly, upload.array('images', 4), productController.updateProduct);          
+router.delete("/:id", protect, adminOnly, productController.deleteProduct);       
 
 module.exports = router;

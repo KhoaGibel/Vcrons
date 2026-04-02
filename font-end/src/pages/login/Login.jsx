@@ -1,30 +1,39 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-// 1. Import thư viện ReCAPTCHA
+import { Link, useNavigate } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
+import { useAuth } from "../../contexts/AuthContext"; 
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  
-  // 2. State để lưu trữ trạng thái xác thực của CAPTCHA
   const [captchaToken, setCaptchaToken] = useState(null);
+  
+  // Lấy hàm login, loading và error từ AuthContext của Khoa
+  const { login, loading, error } = useAuth(); 
+  const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    
-    // 3. Kiểm tra xem người dùng đã tích CAPTCHA chưa
+
     if (!captchaToken) {
       alert("⚠ Vui lòng xác nhận bạn không phải là robot!");
       return;
     }
 
-    console.log("Đăng nhập với:", email, password);
-    console.log("Mã Token CAPTCHA an toàn:", captchaToken);
-    // Xử lý API đăng nhập ở đây
+    // Đẩy thẳng email, pass cho AuthContext tự xử lý API
+    const result = await login(email, password);
+
+    if (result.success) {
+      // Đăng nhập thành công -> check role trong localStorage để chuyển trang
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      if (savedUser?.role === "admin") {
+        navigate("/admin"); // Chào mừng sếp
+      } else {
+        navigate("/"); // Khách thì về trang chủ
+      }
+    }
   };
 
-  // Hàm này tự động chạy khi người dùng tích xanh thành công
   const onCaptchaChange = (token) => {
     setCaptchaToken(token);
   };
@@ -40,11 +49,14 @@ const Login = () => {
           <p style={{ color: "#666", fontSize: "14px", marginTop: "8px" }}>Chào mừng bạn quay trở lại!</p>
         </div>
 
+        {/* Báo lỗi trực tiếp từ AuthContext */}
+        {error && <div style={{ color: "#e60000", backgroundColor: "#fef2f2", padding: "10px", borderRadius: "4px", marginBottom: "20px", fontSize: "13px", textAlign: "center", border: "1px solid #fecaca" }}>{error}</div>}
+
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: "20px" }}>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px", color: "#1a1a1a" }}>EMAIL HOẶC SỐ ĐIỆN THOẠI</label>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: 700, marginBottom: "8px", color: "#1a1a1a" }}>EMAIL</label>
             <input 
-              type="text" 
+              type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="auth-input"
@@ -67,11 +79,8 @@ const Login = () => {
             />
           </div>
 
-          {/* 4. Hiển thị ô Google reCAPTCHA */}
           <div style={{ marginBottom: "24px", display: "flex", justifyContent: "center" }}>
             <ReCAPTCHA
-              // LƯU Ý: Đây là mã Site Key dùng thử của Google (Test Key).
-              // Khi đưa web lên thực tế, bạn sẽ cần đăng ký Site Key riêng miễn phí từ Google.
               sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
               onChange={onCaptchaChange}
             />
@@ -79,10 +88,11 @@ const Login = () => {
 
           <button 
             type="submit"
+            disabled={loading}
             className="auth-btn"
-            style={{ width: "100%", padding: "14px", backgroundColor: "#1a1a1a", color: "#fff", border: "none", borderRadius: "4px", fontSize: "14px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", cursor: "pointer", transition: "background 0.3s" }}
+            style={{ width: "100%", padding: "14px", backgroundColor: loading ? "#666" : "#1a1a1a", color: "#fff", border: "none", borderRadius: "4px", fontSize: "14px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer", transition: "background 0.3s" }}
           >
-            Đăng nhập
+            {loading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </form>
 

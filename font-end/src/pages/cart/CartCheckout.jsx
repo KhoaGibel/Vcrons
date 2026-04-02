@@ -2,20 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 // ===================== DỮ LIỆU & LƯU TRỮ TRẠNG THÁI =====================
-const initCartItems = [
-  { id: 1, name: "Classic Clog", color: "Trắng", size: 40, price: 850000, quantity: 1, image: null },
-  { id: 2, name: "Baya Platform", color: "Xanh", size: 38, price: 1200000, quantity: 2, image: null },
-];
-
-const colorMap = { "Trắng": "#f0f0f0", "Xanh": "#7ec8e3", "Đen": "#1a1a1a", "Hồng": "#f4a7b9", "Be": "#dfd6ca" };
+const colorMap = { "Trắng": "#f0f0f0", "Xanh": "#7ec8e3", "Đen": "#1a1a1a", "Hồng": "#f4a7b9", "Be": "#dfd6ca", "Vàng": "#ffd54f", "Cam": "#ffb74d" };
 const formatPrice = (p) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(p);
 
-// Hàm đồng bộ giỏ hàng với LocalStorage để 2 trang tự nhận diện nhau
+// Hàm đồng bộ giỏ hàng với LocalStorage (Trả về mảng rỗng nếu chưa có gì)
 const getSavedCart = () => {
   const saved = localStorage.getItem("vcrons_cart");
-  if (saved) return JSON.parse(saved);
-  localStorage.setItem("vcrons_cart", JSON.stringify(initCartItems));
-  return initCartItems;
+  return saved ? JSON.parse(saved) : [];
 };
 
 // ===================== TRANG GIỎ HÀNG (CartPage) =====================
@@ -75,8 +68,12 @@ export const CartPage = () => {
               {items.map(item => (
                 <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 40px", gap: "16px", alignItems: "center", padding: "20px 0", borderBottom: "1px solid #f0f0f0" }}>
                   <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                    <div style={{ width: "80px", height: "80px", background: colorMap[item.color] || "#eee", borderRadius: "2px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "9px", color: "rgba(0,0,0,0.3)", letterSpacing: "1px" }}>{item.color}</span>
+                    <div style={{ width: "80px", height: "80px", background: colorMap[item.color] || "#eee", borderRadius: "2px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontSize: "9px", color: "rgba(0,0,0,0.3)", letterSpacing: "1px" }}>{item.color}</span>
+                      )}
                     </div>
                     <div>
                       <p style={{ fontWeight: 700, fontSize: "14px", color: "#1a1a1a", margin: "0 0 4px" }}>{item.name}</p>
@@ -106,7 +103,8 @@ export const CartPage = () => {
               {items.map(item => (
                 <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px", gap: "12px" }}>
                   <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <div style={{ width: "40px", height: "40px", background: colorMap[item.color] || "#eee", borderRadius: "2px", flexShrink: 0, position: "relative" }}>
+                    <div style={{ width: "40px", height: "40px", background: colorMap[item.color] || "#eee", borderRadius: "2px", flexShrink: 0, position: "relative", overflow: "hidden" }}>
+                      {item.image && <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                       <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#1a1a1a", color: "#fff", borderRadius: "50%", width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: 700 }}>{item.quantity}</span>
                     </div>
                     <div>
@@ -149,6 +147,7 @@ export const CheckoutPage = () => {
   const [payment, setPayment] = useState("");
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState({});
+  const navigate = useNavigate();
   
   // Lấy dữ liệu từ bộ nhớ thay vì biến tĩnh
   const items = getSavedCart(); 
@@ -162,6 +161,12 @@ export const CheckoutPage = () => {
 
   // Gọi API lấy 63 Tỉnh/Thành
   useEffect(() => {
+    // Nếu giỏ hàng trống mà cố tình vào trang này thì đá về giỏ hàng
+    if (items.length === 0 && step === 1) {
+      navigate("/cart");
+      return;
+    }
+
     fetch("https://provinces.open-api.vn/api/?depth=1")
       .then(res => res.json())
       .then(data => setProvinces(data))
@@ -209,12 +214,52 @@ export const CheckoutPage = () => {
     return e;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-    // Thành công: Xóa giỏ hàng và chuyển sang step 2
-    localStorage.removeItem("vcrons_cart"); 
-    setStep(2);
+    
+    // Ghép địa chỉ hoàn chỉnh từ Code
+    const provinceName = provinces.find(p => p.code == form.province)?.name || "";
+    const districtName = districts.find(d => d.code == form.district)?.name || "";
+    const wardName = wards.find(w => w.code == form.ward)?.name || "";
+    const fullAddress = `${form.address}, ${wardName}, ${districtName}, ${provinceName}`;
+
+    // Đóng gói cục dữ liệu đơn hàng để gửi API
+    const orderData = {
+      customer: form.fullname,
+      email: form.email,
+      phone: form.phone,
+      address: fullAddress,
+      paymentMethod: payment,
+      items: items.map(i => ({
+        product: i.id || i._id,
+        name: i.name,
+        color: i.color,
+        size: i.size,
+        price: i.price,
+        quantity: i.quantity
+      })),
+      total: subtotal + shipping
+    };
+
+    try {
+      const response = await fetch("http://localhost:3000/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+      });
+
+      if (!response.ok) throw new Error("Lỗi hệ thống khi tạo đơn hàng!");
+
+      // Thành công: Xóa giỏ hàng và chuyển sang step 2 (Trang cảm ơn)
+      localStorage.removeItem("vcrons_cart"); 
+      // Kích hoạt sự kiện để CartContext cập nhật lại số lượng giỏ hàng trên Header = 0
+      window.dispatchEvent(new Event('storage'));
+      
+      setStep(2);
+    } catch (err) {
+      alert("Đặt hàng thất bại: " + err.message);
+    }
   };
 
   const inputStyle = (key) => ({
@@ -372,7 +417,10 @@ export const CheckoutPage = () => {
               {items.map(item => (
                 <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", gap: "12px" }}>
                   <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <div style={{ width: "48px", height: "48px", background: colorMap[item.color] || "#eee", borderRadius: "3px", flexShrink: 0, position: "relative" }}><span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#1a1a1a", color: "#fff", borderRadius: "50%", width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700 }}>{item.quantity}</span></div>
+                    <div style={{ width: "48px", height: "48px", background: colorMap[item.color] || "#eee", borderRadius: "3px", flexShrink: 0, position: "relative", overflow: "hidden" }}>
+                      {item.image && <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                      <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#1a1a1a", color: "#fff", borderRadius: "50%", width: "18px", height: "18px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700 }}>{item.quantity}</span>
+                    </div>
                     <div><p style={{ fontSize: "13px", fontWeight: 600, color: "#1a1a1a", margin: "0 0 3px" }}>{item.name}</p><p style={{ fontSize: "11px", color: "#aaa", margin: 0 }}>{item.color} / EU {item.size}</p></div>
                   </div>
                   <span style={{ fontSize: "13px", fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap" }}>{formatPrice(item.price * item.quantity)}</span>

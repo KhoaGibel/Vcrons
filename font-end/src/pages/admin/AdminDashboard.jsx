@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext"; 
 
 const formatPrice = (p) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(p);
+
+// --- HÀM HỖ TRỢ LẤY TOKEN GẮN VÀO API ---
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  };
+};
+
+// Hàm dành riêng cho Upload Ảnh (FormData không dùng Content-Type json)
+const getAuthHeadersFormData = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Authorization": `Bearer ${token}`
+  };
+};
 
 // ===================== COMPONENTS CƠ BẢN =====================
 const Badge = ({ label, type }) => {
@@ -24,17 +43,28 @@ const Badge = ({ label, type }) => {
 // ===================== SIDEBAR =====================
 const Sidebar = ({ active, setActive }) => {
   const [hovered, setHovered] = useState(null);
+  
+  // DÙNG USEAUTH LẤY THÔNG TIN ADMIN
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   const nav = [
     { key: "overview", icon: "▦", label: "Tổng quan" },
     { key: "products", icon: "⬡", label: "Sản phẩm" },
     { key: "orders", icon: "◈", label: "Đơn hàng" },
     { key: "users", icon: "◉", label: "Người dùng" },
   ];
+
   return (
     <div style={{ width: "240px", minHeight: "100vh", background: "#111", display: "flex", flexDirection: "column", flexShrink: 0, boxShadow: "4px 0 20px rgba(0,0,0,0.05)", zIndex: 10 }}>
-      <div style={{ padding: "32px 24px 24px" }}>
+      <div style={{ padding: "32px 24px 24px", cursor: "pointer" }} onClick={() => navigate("/")}>
         <p style={{ color: "#e60000", fontWeight: 900, fontSize: "18px", letterSpacing: "4px", textTransform: "uppercase", margin: 0 }}>VCRONS</p>
-        <p style={{ color: "#666", fontSize: "11px", letterSpacing: "3px", margin: "4px 0 0", fontWeight: 600 }}>ADMIN PANEL</p>
+        <p style={{ color: "#666", fontSize: "11px", letterSpacing: "3px", margin: "4px 0 0", fontWeight: 600 }}>VỀ TRANG CHỦ</p>
       </div>
       <nav style={{ flex: 1, padding: "12px 0" }}>
         {nav.map((item) => (
@@ -43,7 +73,13 @@ const Sidebar = ({ active, setActive }) => {
           </button>
         ))}
       </nav>
-      <div style={{ padding: "24px", borderTop: "1px solid #222", background: "#0a0a0a" }}><p style={{ color: "#eee", fontSize: "12px", fontWeight: 700, margin: 0 }}>Admin Vcrons</p><p style={{ color: "#777", fontSize: "11px", margin: "4px 0 0" }}>admin@vshop.vn</p></div>
+      <div style={{ padding: "24px", borderTop: "1px solid #222", background: "#0a0a0a" }}>
+        <p style={{ color: "#eee", fontSize: "12px", fontWeight: 700, margin: 0 }}>{user?.name || "Đang tải..."}</p>
+        <p style={{ color: "#777", fontSize: "11px", margin: "4px 0 0", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email || "..."}</p>
+        <button onClick={handleLogout} style={{ marginTop: "12px", width: "100%", padding: "8px", background: "#e60000", color: "#fff", border: "none", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", fontFamily: "'Lato', sans-serif" }}>
+           Đăng xuất
+        </button>
+      </div>
     </div>
   );
 };
@@ -76,25 +112,44 @@ const Overview = ({ products, orders, users }) => {
 // ===================== PRODUCTS =====================
 const ProductModal = ({ product, onSave, onClose }) => {
   const [form, setForm] = useState(product || { name: "", category: "", price: "", stock: "", status: "active", images: ["", "", "", ""] });
+  const [imageFiles, setImageFiles] = useState([null, null, null, null]);
+  const [loading, setLoading] = useState(false);
+  
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  
   const handleImageUpload = (index, e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const previewUrl = URL.createObjectURL(file);
     const newImgs = [...(form.images || ["", "", "", ""])];
     newImgs[index] = previewUrl;
     set("images", newImgs);
+
+    const newFiles = [...imageFiles];
+    newFiles[index] = file;
+    setImageFiles(newFiles);
   };
+
+  const submitForm = async () => {
+    setLoading(true);
+    await onSave(form, imageFiles);
+    setLoading(false);
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)", padding: "20px" }}>
       <div style={{ background: "#fff", borderRadius: "8px", padding: "36px", width: "560px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", fontFamily: "'Lato', sans-serif" }}>
         <h3 style={{ fontSize: "16px", fontWeight: 900, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "28px", color: "#1a1a1a" }}>{product ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
+        
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
           <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#555", display: "block", marginBottom: "8px" }}>Tên sản phẩm</label><input type="text" value={form.name} onChange={e => set("name", e.target.value)} style={{ width: "100%", border: "1px solid #ddd", borderRadius: "4px", padding: "12px 16px", fontSize: "14px", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} /></div>
           <div><label style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#555", display: "block", marginBottom: "8px" }}>Giá (VNĐ)</label><input type="number" value={form.price} onChange={e => set("price", e.target.value)} style={{ width: "100%", border: "1px solid #ddd", borderRadius: "4px", padding: "12px 16px", fontSize: "14px", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} /></div>
           <div><label style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#555", display: "block", marginBottom: "8px" }}>Tồn kho</label><input type="number" value={form.stock} onChange={e => set("stock", e.target.value)} style={{ width: "100%", border: "1px solid #ddd", borderRadius: "4px", padding: "12px 16px", fontSize: "14px", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} /></div>
         </div>
+        
         <div style={{ marginBottom: "20px" }}><label style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#555", display: "block", marginBottom: "8px" }}>Danh mục</label><input list="categories-list" placeholder="Chọn hoặc gõ để thêm..." value={form.category} onChange={e => set("category", e.target.value)} style={{ width: "100%", border: "1px solid #ddd", borderRadius: "4px", padding: "12px 16px", fontSize: "14px", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} /><datalist id="categories-list"><option value="Classic" /><option value="Baya" /><option value="Crush" /><option value="Sandal" /><option value="Jibbitz" /></datalist></div>
+
         <div style={{ marginBottom: "20px" }}>
           <label style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#555", display: "block", marginBottom: "12px" }}>Hình ảnh sản phẩm</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
@@ -106,8 +161,15 @@ const ProductModal = ({ product, onSave, onClose }) => {
             ))}
           </div>
         </div>
+        
         <div style={{ marginBottom: "32px" }}><label style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#555", display: "block", marginBottom: "8px" }}>Trạng thái</label><select value={form.status} onChange={e => set("status", e.target.value)} style={{ width: "100%", border: "1px solid #ddd", borderRadius: "4px", padding: "12px 16px", fontSize: "14px", outline: "none", fontFamily: "inherit" }}><option value="active">Hiển thị</option><option value="inactive">Ẩn</option></select></div>
-        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid #eaeaea", paddingTop: "24px" }}><button onClick={onClose} style={{ padding: "12px 24px", background: "#f5f5f5", color: "#444", border: "none", borderRadius: "4px", fontSize: "13px", fontWeight: 800, cursor: "pointer", transition: "background 0.2s" }}>Huỷ</button><button onClick={() => onSave(form)} style={{ padding: "12px 28px", background: "#e60000", color: "#fff", border: "none", borderRadius: "4px", fontSize: "13px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(230,0,0,0.2)" }}>{product ? "Lưu thay đổi" : "Thêm sản phẩm"}</button></div>
+        
+        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid #eaeaea", paddingTop: "24px" }}>
+          <button onClick={onClose} disabled={loading} style={{ padding: "12px 24px", background: "#f5f5f5", color: "#444", border: "none", borderRadius: "4px", fontSize: "13px", fontWeight: 800, cursor: "pointer", transition: "background 0.2s", opacity: loading ? 0.5 : 1 }}>Huỷ</button>
+          <button onClick={submitForm} disabled={loading} style={{ padding: "12px 28px", background: "#e60000", color: "#fff", border: "none", borderRadius: "4px", fontSize: "13px", fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 12px rgba(230,0,0,0.2)", opacity: loading ? 0.5 : 1 }}>
+            {loading ? "Đang lưu..." : (product ? "Lưu thay đổi" : "Thêm sản phẩm")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -117,25 +179,61 @@ const Products = ({ products, setProducts }) => {
   const [modal, setModal] = useState(null); 
   const [deleteId, setDeleteId] = useState(null);
 
-  const handleSave = async (form) => {
-    const formToSave = { ...form, images: form.images || ["", "", "", ""] };
+  const handleSave = async (form, imageFiles) => {
     try {
-      if (modal === "add") {
-        const response = await fetch("http://localhost:3000/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formToSave) });
-        const newProduct = await response.json();
-        setProducts(p => [...p, newProduct]);
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("category", form.category);
+      formData.append("price", form.price);
+      formData.append("stock", form.stock);
+      formData.append("status", form.status);
+
+      imageFiles.forEach(file => {
+        if (file) {
+          formData.append("images", file);
+        }
+      });
+
+      if (!imageFiles.some(f => f !== null) && form.images) {
+        form.images.forEach(img => {
+          if (img && !img.startsWith("blob:")) formData.append("images", img);
+        });
+      }
+
+      const isAdd = modal === "add";
+      const url = isAdd ? "http://localhost:3000/api/products" : `http://localhost:3000/api/products/${form._id}`;
+      const method = isAdd ? "POST" : "PUT";
+
+      // Sử dụng token cho việc upload sản phẩm (FormData)
+      const response = await fetch(url, { 
+        method: method, 
+        body: formData,
+        headers: getAuthHeadersFormData() // Chỗ này quan trọng, không được json
+      });
+
+      if (!response.ok) throw new Error("Lỗi tải dữ liệu lên Server");
+
+      const savedProduct = await response.json();
+      
+      if (isAdd) {
+        setProducts(p => [...p, savedProduct]);
       } else {
-        const response = await fetch(`http://localhost:3000/api/products/${form._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formToSave) });
-        const updatedProduct = await response.json();
-        setProducts(p => p.map(pr => pr._id === updatedProduct._id ? updatedProduct : pr));
+        setProducts(p => p.map(pr => pr._id === savedProduct._id ? savedProduct : pr));
       }
       setModal(null);
-    } catch (error) { console.error(error); alert("Lỗi kết nối tới Server!"); }
+      
+    } catch (error) { 
+      console.error(error); 
+      alert("Lỗi kết nối Server hoặc kích thước file ảnh quá lớn!"); 
+    }
   };
 
   const confirmDelete = async () => {
     try {
-      await fetch(`http://localhost:3000/api/products/${deleteId}`, { method: "DELETE" });
+      await fetch(`http://localhost:3000/api/products/${deleteId}`, { 
+          method: "DELETE",
+          headers: getAuthHeaders() // Đã thêm token
+      });
       setProducts(p => p.filter(pr => pr._id !== deleteId));
       setDeleteId(null);
     } catch (error) { console.error(error); }
@@ -196,14 +294,21 @@ const Orders = ({ orders, setOrders }) => {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      await fetch(`http://localhost:3000/api/orders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
+      await fetch(`http://localhost:3000/api/orders/${id}`, { 
+        method: "PUT", 
+        headers: getAuthHeaders(), // Đã thêm token
+        body: JSON.stringify({ status: newStatus }) 
+      });
       setOrders(ords => ords.map(ord => ord._id === id ? { ...ord, status: newStatus } : ord));
     } catch (error) { console.error(error); }
   };
 
   const confirmDeleteOrder = async () => {
     try {
-      await fetch(`http://localhost:3000/api/orders/${deleteOrderId}`, { method: "DELETE" });
+      await fetch(`http://localhost:3000/api/orders/${deleteOrderId}`, { 
+        method: "DELETE",
+        headers: getAuthHeaders() // Đã thêm token
+      });
       setOrders(ords => ords.filter(o => o._id !== deleteOrderId));
       setDeleteOrderId(null);
     } catch (error) { console.error(error); }
@@ -280,11 +385,11 @@ const Users = ({ users, setUsers }) => {
   const handleSave = async (form) => {
     try {
       if (modal === "add") {
-        const res = await fetch("http://localhost:3000/api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+        const res = await fetch("http://localhost:3000/api/users", { method: "POST", headers: getAuthHeaders(), body: JSON.stringify(form) });
         const newUser = await res.json();
         setUsers(u => [...u, newUser]);
       } else {
-        const res = await fetch(`http://localhost:3000/api/users/${form._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+        const res = await fetch(`http://localhost:3000/api/users/${form._id}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(form) });
         const updatedUser = await res.json();
         setUsers(us => us.map(u => u._id === form._id ? updatedUser : u));
       }
@@ -294,7 +399,7 @@ const Users = ({ users, setUsers }) => {
 
   const confirmDeleteUser = async () => {
     try {
-      await fetch(`http://localhost:3000/api/users/${deleteId}`, { method: "DELETE" });
+      await fetch(`http://localhost:3000/api/users/${deleteId}`, { method: "DELETE", headers: getAuthHeaders() });
       setUsers(us => us.filter(u => u._id !== deleteId));
       setDeleteId(null);
     } catch (err) { console.error(err); }
@@ -352,9 +457,26 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/products").then(res => res.json()).then(data => setProducts(Array.isArray(data) ? data : [])).catch(err => { console.error("Lỗi:", err); setProducts([]); });
-    fetch("http://localhost:3000/api/orders").then(res => res.json()).then(data => setOrders(Array.isArray(data) ? data : [])).catch(err => { console.error("Lỗi:", err); setOrders([]); });
-    fetch("http://localhost:3000/api/users").then(res => res.json()).then(data => setUsers(Array.isArray(data) ? data : [])).catch(err => { console.error("Lỗi:", err); setUsers([]); });
+    // NHÉT TOKEN VÀO TẤT CẢ CÁC LỆNH FETCH
+    const headers = getAuthHeaders();
+
+    fetch("http://localhost:3000/api/products")
+      .then(res => res.json())
+      .then(data => setProducts(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Lỗi Product:", err));
+
+    fetch("http://localhost:3000/api/orders", { headers })
+      .then(res => res.json())
+      .then(data => setOrders(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Lỗi Order:", err));
+
+    fetch("http://localhost:3000/api/users", { headers })
+      .then(res => {
+         if (!res.ok) throw new Error("Không có quyền truy cập Users");
+         return res.json();
+      })
+      .then(data => setUsers(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Lỗi User:", err));
   }, []);
 
   const renderContent = () => {
