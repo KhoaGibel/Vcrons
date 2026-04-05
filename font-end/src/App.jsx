@@ -2,7 +2,8 @@ import React from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+// 👉 ĐÃ THÊM 'Navigate' VÀO ĐÂY NHÉ:
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 // ==========================================
 // 1. IMPORT CÁC COMPONENT LAYOUT
@@ -25,8 +26,7 @@ import AboutPage from "./pages/about/index.jsx";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext"; 
 import UserProfile from "./pages/profile/UserProfile.jsx";
-
-
+import UserOrders from "./pages/profile/UserOrders";
 
 // ==========================================
 // 3. COMPONENT LAYOUT CHÍNH QUẢN LÝ HEADER & FOOTER
@@ -61,7 +61,6 @@ const MainLayout = ({ children }) => {
 // ==========================================
 function App() {
     return (
-        // BỌC THÊM AUTHPROVIDER Ở NGOÀI CÙNG NHƯ NÀY NÈ:
         <AuthProvider>
             <CartProvider>
                 <MainLayout>
@@ -69,6 +68,10 @@ function App() {
                         {/* --- NHÓM 1: CÁC TRANG CÓ HEADER & FOOTER --- */}
                         <Route path="/" element={<Home />} />
                         <Route path="/shop" element={<ProductPage />} />
+                        
+                        {/* 👉 CÁI "BẢO HIỂM": AI VÀO /product SẼ TỰ BỊ ĐÁ SANG /shop */}
+                        <Route path="/product" element={<Navigate to="/shop" replace />} />
+                        
                         <Route path="/product/:id" element={<ProductDetail />} />
                         <Route path="/cart" element={<CartPage />} />
                         <Route path="/about" element={<AboutPage />} />
@@ -78,6 +81,7 @@ function App() {
                         <Route path="/register" element={<Register />} />
                         <Route path="/checkout" element={<CheckoutPage />} />
                         <Route path="/profile" element={<UserProfile />} />
+                        <Route path="/history-order" element={<UserOrders />} />
                         
                         {/* --- NHÓM 3: TRANG ADMIN (CÓ BẢO VỆ) --- */}
                         <Route element={<ProtectedRoute adminOnly={true} />}>

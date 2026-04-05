@@ -19,13 +19,15 @@ const ProductCard = ({ product }) => {
   const [hovered, setHovered] = useState(false);
   if (!product) return null;
 
-  const displayColor = product?.colors?.length > 0 ? product.colors[0].name : (product?.color || "Mặc định");
+  // 👉 TỐI ƯU LOGIC HIỂN THỊ ẢNH: Ưu tiên mảng images ngoài cùng (Cloudinary)
   let displayImage = null;
-  if (product?.images?.length > 0 && product.images[0]) {
+  if (product.images && product.images.length > 0) {
       displayImage = product.images[0];
-  } else if (product?.colors?.length > 0 && product.colors[0]?.images?.length > 0) {
+  } else if (product.colors && product.colors.length > 0 && product.colors[0].images?.length > 0) {
       displayImage = product.colors[0].images[0];
   }
+
+  const displayColor = product.colors?.length > 0 ? product.colors[0].name : (product.color || "Mặc định");
 
   return (
     <Link to={`/product/${product._id}`} style={{ textDecoration: "none", color: "inherit" }}
@@ -38,19 +40,22 @@ const ProductCard = ({ product }) => {
       }}>
         <div style={{ width: "100%", aspectRatio: "4/3", background: colorMap[displayColor] || "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
           {displayImage ? (
-            <img src={displayImage} alt={product?.name || "Product"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={displayImage} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
-            <span style={{ fontSize: "13px", color: "rgba(0,0,0,0.35)", letterSpacing: "1px", textTransform: "uppercase" }}>Crocs</span>
+            <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: "13px", color: "rgba(0,0,0,0.2)", letterSpacing: "2px", fontWeight: 800 }}>CROCS</span>
+                <p style={{ fontSize: "10px", color: "#ccc", margin: 0 }}>Chưa có ảnh</p>
+            </div>
           )}
           <div style={{ position: "absolute", top: "12px", left: "12px", display: "flex", flexDirection: "column", gap: "5px" }}>
-             {product?.isNewProduct && <span style={{ background: "#1a1a1a", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: "2px" }}>MỚI</span>}
+             {product.isNewProduct && <span style={{ background: "#1a1a1a", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: "2px" }}>MỚI</span>}
           </div>
         </div>
         <div style={{ padding: "16px" }}>
-          <p style={{ fontSize: "11px", color: "#999", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 4px" }}>{product?.category || "Giày dép"}</p>
-          <h3 className="product-title" style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 10px", color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product?.name || "Đang cập nhật"}</h3>
+          <p style={{ fontSize: "11px", color: "#999", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 4px" }}>{product.category || "Giày dép"}</p>
+          <h3 className="product-title" style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 10px", color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.name || "Đang cập nhật"}</h3>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span className="product-price" style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a1a" }}>{formatPrice(product?.price)}</span>
+            <span className="product-price" style={{ fontSize: "16px", fontWeight: 700, color: "#1a1a1a" }}>{formatPrice(product.price)}</span>
           </div>
         </div>
       </div>
@@ -67,9 +72,7 @@ const ProductPage = () => {
     fetch("http://localhost:3000/api/products")
       .then(res => res.json())
       .then(data => {
-        // TÔI ĐÃ SỬA CHỖ NÀY: Fix lỗi không lấy được mảng nếu Back-end trả về { data: [...] }
         const productList = Array.isArray(data) ? data : (data.products || data.data || []);
-        // Tạm thời hiển thị TẤT CẢ sản phẩm (bỏ qua điều kiện p.status === 'active' để check xem hàng có lên không)
         setDbProducts(productList);
         setLoading(false);
       })

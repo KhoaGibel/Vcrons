@@ -1,30 +1,21 @@
 const Product = require("../models/Product");
+const { cloudinary } = require("../config/cloudinaryConfig"); // Đảm bảo đường dẫn này đúng với file config của Khoa
 
-// 1. LẤY TOÀN BỘ SẢN PHẨM (có filter + pagination)
+// 1. LẤY TOÀN BỘ SẢN PHẨM (Đã sửa để trả về Mảng, khớp 100% với AdminDashboard)
 exports.getProducts = async (req, res) => {
   try {
-    const { category, status, search, page = 1, limit = 20 } = req.query;
+    const { category, status, search } = req.query;
 
     const filter = {};
     if (category) filter.category = category;
     if (status) filter.status = status;
     if (search) filter.name = { $regex: search, $options: "i" };
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await Product.countDocuments(filter);
-    const products = await Product.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Lấy danh sách và sắp xếp mới nhất lên đầu
+    const products = await Product.find(filter).sort({ createdAt: -1 });
 
-    res.status(200).json({
-      products,
-      pagination: {
-        total,
-        page: parseInt(page),
-        pages: Math.ceil(total / parseInt(limit)),
-      },
-    });
+    // TRẢ VỀ DẠNG MẢNG ĐỂ FRONT-END KHÔNG BỊ LỖI TRẮNG TRANG
+    res.status(200).json(products);
   } catch (error) {
     res.status(500).json({ message: "Lỗi server khi lấy sản phẩm", error });
   }
@@ -43,20 +34,26 @@ exports.getProductById = async (req, res) => {
   }
 };
 
-// 3. THÊM SẢN PHẨM MỚI
+// 3. THÊM SẢN PHẨM MỚI (Tích hợp Multer & Cloudinary)
 exports.createProduct = async (req, res) => {
   try {
-    // req.files chứa các ảnh đã được Multer đẩy lên Cloudinary
-    // Ta map qua để lấy danh sách các đường link URL
-    const imageUrls = req.files ? req.files.map(file => file.path) : [];
+    // Lấy link ảnh mới từ Cloudinary (do Multer đẩy lên)
+    const newImageUrls = req.files ? req.files.map(file => file.path) : [];
+
+    // Nếu Admin điền link ảnh thủ công hoặc có ảnh cũ truyền lên
+    let existingImages = [];
+    if (req.body.images) {
+      existingImages = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
+    }
 
     const newProduct = new Product({
       ...req.body,
-      images: imageUrls.length > 0 ? imageUrls : req.body.images 
+      // Gộp ảnh cũ và ảnh mới lại với nhau
+      images: [...existingImages, ...newImageUrls].filter(img => img) 
     });
 
-    await newProduct.save();
-    res.status(201).json(newProduct);
+    const savedProduct = await newProduct.save();
+    res.status(201).json(savedProduct);
   } catch (error) {
     res.status(500).json({ message: "Lỗi thêm sản phẩm", error });
   }
@@ -65,34 +62,57 @@ exports.createProduct = async (req, res) => {
 // 4. CẬP NHẬT SẢN PHẨM
 exports.updateProduct = async (req, res) => {
   try {
-    // Lấy URL ảnh mới (nếu Admin có chọn ảnh mới)
-    const imageUrls = req.files ? req.files.map(file => file.path) : [];
+    const newImageUrls = req.files ? req.files.map(file => file.path) : [];
     
-    // Nếu có up ảnh mới thì lấy ảnh mới, không thì giữ nguyên ảnh cũ (nằm trong req.body)
-    const updateData = { ...req.body };
-    if (imageUrls.length > 0) {
-        updateData.images = imageUrls;
+    let existingImages = [];
+    if (req.body.images) {
+      existingImages = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
     }
+
+    const updateData = { 
+      ...req.body,
+      images: [...existingImages, ...newImageUrls].filter(img => img)
+    };
 
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id, 
       updateData, 
       { new: true }
     );
-    res.json(updatedProduct);
+    res.status(200).json(updatedProduct);
   } catch (error) {
     res.status(500).json({ message: "Lỗi cập nhật sản phẩm", error });
   }
 };
 
-// 5. XOÁ SẢN PHẨM
+// 5. XOÁ SẢN PHẨM (Kèm xoá sạch ảnh trên mây Cloudinary)
 exports.deleteProduct = async (req, res) => {
   try {
-    const deleted = await Product.findByIdAndDelete(req.params.id);
-    if (!deleted) {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
       return res.status(404).json({ message: "Không tìm thấy sản phẩm!" });
     }
-    res.status(200).json({ message: "Đã xoá sản phẩm thành công!" });
+
+    // Xoá file ảnh trên Cloudinary để đỡ tốn dung lượng
+    if (product.images && product.images.length > 0) {
+      for (const imgUrl of product.images) {
+        if (imgUrl.includes('res.cloudinary.com')) {
+          try {
+            const parts = imgUrl.split("/");
+            const filename = parts[parts.length - 1].split(".")[0];
+            const folderName = parts[parts.length - 2]; 
+            const publicId = `${folderName}/${filename}`; // VD: vcrons_products/abcxyz
+            
+            await cloudinary.uploader.destroy(publicId);
+          } catch (err) {
+            console.error("Lỗi khi xoá ảnh Cloudinary:", err);
+          }
+        }
+      }
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: "Đã xoá sản phẩm và ảnh thành công!" });
   } catch (error) {
     res.status(500).json({ message: "Lỗi khi xoá sản phẩm", error });
   }

@@ -31,6 +31,10 @@ const productSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  
+  // 👉 ĐÂY RỒI: DÒNG QUAN TRỌNG NHẤT ĐỂ LƯU ẢNH CHUNG CHO SẢN PHẨM
+  images: [{ type: String }], 
+  
   colors: [colorSchema],    // Mảng màu + ảnh theo từng màu
   sizes: [{ type: Number }], // [36, 37, 38, 39, 40, 41, 42, 43]
   features: [{ type: String }], // Các tính năng nổi bật

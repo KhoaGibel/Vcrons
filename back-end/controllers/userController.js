@@ -24,7 +24,7 @@ exports.updateUser = async (req, res) => {
   try {
     const { role, status } = req.body;
 
-    // Không cho tự sửa tài khoản admin gốc (id = req.user.id khi là chính mình)
+    // Không cho tự sửa tài khoản admin gốc
     if (req.params.id === req.user.id) {
       return res.status(400).json({ message: "Không thể tự sửa tài khoản của chính mình qua API này!" });
     }
@@ -70,17 +70,30 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// 5. USER: CẬP NHẬT THÔNG TIN CÁ NHÂN (tên, phone, avatar)
+// 5. USER: CẬP NHẬT THÔNG TIN (TÊN, SỐ ĐIỆN THOẠI, AVATAR)
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, avatar } = req.body;
-    const updated = await User.findByIdAndUpdate(
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
+
+    const updateData = {};
+
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.body.phone) updateData.phone = req.body.phone;
+
+    if (req.file) {
+      updateData.avatar = req.file.path; // Link trả về từ Cloudinary
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
-      { name, phone, avatar },
-      { new: true, runValidators: true }
+      updateData,
+      { new: true } 
     );
-    res.status(200).json(updated);
+
+    res.status(200).json(updatedUser);
   } catch (error) {
+    console.error("❌ Lỗi Update Profile:", error);
     res.status(500).json({ message: "Lỗi server", error });
   }
 };
@@ -89,23 +102,30 @@ exports.updateProfile = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
-
+    
+    // Tìm user và lấy cả field password để đối chiếu
     const user = await User.findById(req.user.id).select("+password");
     if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng!" });
 
+    // So sánh pass cũ
     const isMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Mật khẩu cũ không đúng!" });
+    if (!isMatch) {
+      return res.status(400).json({ message: "Mật khẩu cũ không chính xác!" });
+    }
 
+    // Validate pass mới
     if (newPassword.length < 6) {
       return res.status(400).json({ message: "Mật khẩu mới tối thiểu 6 ký tự!" });
     }
 
+    // Mã hoá (băm) pass mới
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
     res.status(200).json({ message: "Đổi mật khẩu thành công!" });
   } catch (error) {
+    console.error("❌ Lỗi Đổi Mật Khẩu:", error);
     res.status(500).json({ message: "Lỗi server", error });
   }
 };

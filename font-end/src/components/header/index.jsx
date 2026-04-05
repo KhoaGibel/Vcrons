@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // <-- Thêm useNavigate
+import { Link, useNavigate } from "react-router-dom"; 
 import { useCart } from "../../contexts/CartContext";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -63,7 +63,7 @@ const Header = () => {
     
     const { cartCount } = useCart();
     const { user, logout } = useAuth();
-    const navigate = useNavigate(); // Hook chuyển trang
+    const navigate = useNavigate(); 
 
     // Hàm xử lý khi submit form tìm kiếm
     const handleSearch = (e) => {
@@ -87,15 +87,16 @@ const Header = () => {
 
                 {/* MENU */}
                 <nav className="main-menu d-none d-lg-flex justify-content-center" style={{ flex: "2", gap: "32px" }}>
-                    <Link to="/product" className="text-dark font-weight-bold text-uppercase menu-link"
+                    {/* Đã sửa /product thành /shop */}
+                    <Link to="/shop" className="text-dark font-weight-bold text-uppercase menu-link"
                         style={{ textDecoration: "none", fontSize: "18px", letterSpacing: "0.5px" }}>
                         Shop
                     </Link>
-                    <Link to="/product?category=Classic" className="text-dark font-weight-bold text-uppercase menu-link"
+                    <Link to="/shop?category=Classic" className="text-dark font-weight-bold text-uppercase menu-link"
                         style={{ textDecoration: "none", fontSize: "18px", letterSpacing: "0.5px" }}>
                         Classic
                     </Link>
-                    <Link to="/product?category=Crush" className="text-dark font-weight-bold text-uppercase menu-link"
+                    <Link to="/shop?category=Crush" className="text-dark font-weight-bold text-uppercase menu-link"
                         style={{ textDecoration: "none", fontSize: "18px", letterSpacing: "0.5px" }}>
                         Crush
                     </Link>
@@ -109,7 +110,7 @@ const Header = () => {
                 <div className="right-actions d-flex align-items-center justify-content-end" style={{ flex: "1" }}>
                     <DarkMode />
 
-                    {/* FORM TÌM KIẾM ĐÃ ĐƯỢC KÍCH HOẠT */}
+                    {/* FORM TÌM KIẾM */}
                     <form 
                         onSubmit={handleSearch} 
                         className="search-bar position-relative d-none d-md-block mr-4"
@@ -176,10 +177,9 @@ const Header = () => {
                                         style={{ textDecoration: "none", fontSize: "14px" }}>
                                         Thông tin cá nhân
                                     </Link>
-                                    <Link to="/history-order" className="d-block px-3 py-2 text-dark menu-link"
-                                        style={{ textDecoration: "none", fontSize: "14px" }}>
-                                        Đơn hàng của tôi
-                                    </Link>
+<Link to="/history-order" className="d-block px-3 py-2 text-dark menu-link" style={{ textDecoration: "none", fontSize: "14px" }}>
+    Đơn hàng của tôi
+</Link>
                                     {user.role === "admin" && (
                                         <Link to="/admin" className="d-block px-3 py-2 menu-link"
                                             style={{ textDecoration: "none", fontSize: "14px", color: "#e60000", fontWeight: 700 }}>
@@ -205,7 +205,7 @@ const Header = () => {
                                         style={{ textDecoration: "none", fontSize: "14px", fontWeight: 600 }}>
                                         Đăng ký tài khoản
                                     </Link>
-                                    <Link to="/profile"></Link>
+                                    {/* Đã xóa thẻ rỗng ở đây */}
                                 </>
                             )}
                         </div>

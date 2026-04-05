@@ -3,9 +3,15 @@ const router = express.Router();
 const userController = require("../controllers/userController");
 const { protect, adminOnly } = require("../middleware/authMiddleware");
 
+
+const { upload } = require("../config/cloudinaryConfig");
+
 // ─── USER (chính chủ) ─────────────────────────────────────
 router.get("/profile", protect, userController.getProfile);
-router.put("/profile", protect, userController.updateProfile);
+
+
+router.put("/profile", protect, upload.single("avatar"), userController.updateProfile);
+
 router.put("/change-password", protect, userController.changePassword);
 
 // ─── ADMIN ────────────────────────────────────────────────
