@@ -1,7 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const dotenv = require("dotenv");
 
 // Load biến môi trường từ file .env
 require("dotenv").config();
@@ -10,7 +9,12 @@ const app = express();
 
 // ─── MIDDLEWARE ───────────────────────────────────────────
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+  origin: [
+    "http://localhost:3000", 
+    "http://localhost:3001", 
+    "http://localhost:5173",
+    "https://vcrons.vercel.app" // 👉 KHÁCH MỜI VIP VERCEL ĐÃ ĐƯỢC THÊM VÀO ĐÂY!
+  ],
   credentials: true,
 }));
 app.use(express.json()); // Parse JSON body
