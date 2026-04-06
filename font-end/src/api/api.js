@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://vcrons.onrender.com",
+  baseURL: "https://vcrons.onrender.com/api",
   timeout: 10000,
 });
 

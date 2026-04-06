@@ -202,7 +202,7 @@ const Products = ({ products, setProducts }) => {
       if (!hasImage) formData.append("images", []);
 
       const isAdd = modal === "add";
-      const url = isAdd ? "http://localhost:3000/api/products" : `http://localhost:3000/api/products/${form._id}`;
+      const url = isAdd ? "https://vcrons.onrender.com/api/products" : `https://vcrons.onrender.com/api/products/${form._id}`;
 
       const response = await fetch(url, { 
         method: isAdd ? "POST" : "PUT", 
@@ -232,7 +232,7 @@ const Products = ({ products, setProducts }) => {
 
   const confirmDelete = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/products/${deleteId}`, { 
+      const response = await fetch(`https://vcrons.onrender.com/api/products/${deleteId}`, { 
           method: "DELETE",
           headers: getAuthHeaders() 
       });
@@ -569,7 +569,7 @@ const Orders = ({ orders, setOrders }) => {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/orders/${id}`, {
+      const response = await fetch(`https://vcrons.onrender.com/api/orders/${id}`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus })
@@ -584,7 +584,7 @@ const Orders = ({ orders, setOrders }) => {
 
   const handleSaveOrder = async (id, updateData) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/orders/${id}`, {
+      const res = await fetch(`https://vcrons.onrender.com/api/orders/${id}`, {
         method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(updateData)
       });
       if (!res.ok) { alert("Lỗi lưu đơn hàng!"); return; }
@@ -596,7 +596,7 @@ const Orders = ({ orders, setOrders }) => {
 
   const confirmDeleteOrder = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/orders/${deleteOrderId}`, {
+      const response = await fetch(`https://vcrons.onrender.com/api/orders/${deleteOrderId}`, {
         method: "DELETE", headers: getAuthHeaders()
       });
       if (!response.ok) { const e = await response.json(); alert(`Lỗi: ${e.message}`); return; }
@@ -729,7 +729,7 @@ const Users = ({ users, setUsers }) => {
 
   const handleSave = async (form) => {
     try {
-      const url = modal === "add" ? "http://localhost:3000/api/users" : `http://localhost:3000/api/users/${form._id}`;
+      const url = modal === "add" ? "https://vcrons.onrender.com/api/users" : `https://vcrons.onrender.com/api/users/${form._id}`;
       const res = await fetch(url, { 
         method: modal === "add" ? "POST" : "PUT", 
         headers: getAuthHeaders(), 
@@ -749,7 +749,7 @@ const Users = ({ users, setUsers }) => {
 
   const confirmDeleteUser = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/users/${deleteId}`, { method: "DELETE", headers: getAuthHeaders() });
+      const response = await fetch(`https://vcrons.onrender.com/api/users/${deleteId}`, { method: "DELETE", headers: getAuthHeaders() });
       if(!response.ok) {
           const errData = await response.json();
           alert(`Lỗi xoá tài khoản: ${errData.message}`); return;
@@ -812,17 +812,17 @@ const AdminDashboard = () => {
   useEffect(() => {
     const headers = getAuthHeaders();
 
-    fetch("http://localhost:3000/api/products")
+    fetch("https://vcrons.onrender.com/api/products")
       .then(res => res.json())
       .then(data => setProducts(Array.isArray(data) ? data : []))
       .catch(err => console.error("Lỗi Product:", err));
 
-    fetch("http://localhost:3000/api/orders", { headers })
+    fetch("https://vcrons.onrender.com/api/orders", { headers })
       .then(res => res.json())
       .then(data => setOrders(Array.isArray(data) ? data : []))
       .catch(err => console.error("Lỗi Order:", err));
 
-    fetch("http://localhost:3000/api/users", { headers })
+    fetch("https://vcrons.onrender.com/api/users", { headers })
       .then(res => {
          if (!res.ok) throw new Error("Không có quyền truy cập Users");
          return res.json();

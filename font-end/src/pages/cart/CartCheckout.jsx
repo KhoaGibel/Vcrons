@@ -289,7 +289,7 @@ export const CheckoutPage = () => {
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch("http://localhost:3000/api/orders", {
+      const res = await fetch("https://vcrons.onrender.com/api/orders", {
         method: "POST", headers, body: JSON.stringify(orderData),
       });
 

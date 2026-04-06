@@ -123,8 +123,8 @@ const ProductDetail = () => {
       setLoading(true);
       try {
         const [pRes, aRes] = await Promise.all([
-          fetch(`http://localhost:3000/api/products/${id}`),
-          fetch(`http://localhost:3000/api/products`)
+          fetch(`https://vcrons.onrender.com/api/products/${id}`),
+          fetch(`https://vcrons.onrender.com/api/products`)
         ]);
         const pData = await pRes.json();
         const aData = await aRes.json();

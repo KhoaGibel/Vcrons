@@ -71,7 +71,7 @@ const UserProfile = () => {
     setOrdersLoading(true); setOrdersError("");
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/api/orders/my-orders", {
+      const res = await fetch("https://vcrons.onrender.com/api/orders/my-orders", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -90,7 +90,7 @@ const UserProfile = () => {
     setCancelling(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3000/api/orders/${cancelModal.orderId}/cancel`, {
+      const res = await fetch(`https://vcrons.onrender.com/api/orders/${cancelModal.orderId}/cancel`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ cancelReason: finalReason }),

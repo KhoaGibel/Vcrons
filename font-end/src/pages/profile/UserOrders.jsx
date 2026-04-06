@@ -40,7 +40,7 @@ const UserOrders = () => {
         const token = localStorage.getItem("token");
 
         // FIX 1: Gọi đúng endpoint /my-orders thay vì /orders (route admin)
-        const res = await fetch("http://localhost:3000/api/orders/my-orders", {
+        const res = await fetch("https://vcrons.onrender.com/api/orders/my-orders", {
           headers: { "Authorization": `Bearer ${token}` },
         });
 

@@ -51,7 +51,7 @@ const Home = () => {
   const [trendingProducts, setTrendingProducts] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/products")
+    fetch("https://vcrons.onrender.comapi/products")
       .then(res => res.json())
       .then(data => {
         if(Array.isArray(data)) {
