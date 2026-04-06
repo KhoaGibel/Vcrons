@@ -69,7 +69,7 @@ const ProductPage = () => {
   const [sortBy, setSortBy] = useState("default");
 
   useEffect(() => {
-    fetch("https://vcrons.onrender.comapi/products")
+    fetch("https://vcrons.onrender.com/api/products")
       .then(res => res.json())
       .then(data => {
         const productList = Array.isArray(data) ? data : (data.products || data.data || []);
