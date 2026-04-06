@@ -51,12 +51,22 @@ const Home = () => {
   const [trendingProducts, setTrendingProducts] = useState([]);
 
   useEffect(() => {
-    fetch("https://vcrons.onrender.comapi/products")
+    fetch("https://vcrons.onrender.com/api/products")
       .then(res => res.json())
       .then(data => {
-        if(Array.isArray(data)) {
-           const activeProds = data.filter(p => p.status === "active");
-           setTrendingProducts(activeProds.slice(0, 4));
+        // Xử lý thông minh: Dù API trả về Array trực tiếp hay bọc trong Object thì đều lấy được
+        const productList = Array.isArray(data) ? data : (data.products || data.data || []);
+        
+        if (productList.length > 0) {
+          // Lọc ra mấy đôi dép có trạng thái active
+          const activeProds = productList.filter(p => p.status === "active");
+          
+          // Nếu có active thì lấy 4 cái, không có active thì lấy bừa 4 cái đầu tiên trong kho
+          if (activeProds.length > 0) {
+              setTrendingProducts(activeProds.slice(0, 4));
+          } else {
+              setTrendingProducts(productList.slice(0, 4));
+          }
         }
       })
       .catch(err => console.error("Lỗi:", err));
@@ -104,9 +114,13 @@ const Home = () => {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "24px", marginBottom: "48px" }}>
-          {trendingProducts.map((product) => (
-            <ProductCard key={product._id} product={product} />
-          ))}
+          {trendingProducts.length > 0 ? (
+            trendingProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))
+          ) : (
+            <p style={{ gridColumn: "1 / -1", textAlign: "center", color: "#888", fontSize: "15px" }}>Đang tải sản phẩm...</p>
+          )}
         </div>
 
         <div style={{ textAlign: "center" }}>
