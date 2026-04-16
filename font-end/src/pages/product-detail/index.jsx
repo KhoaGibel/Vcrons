@@ -74,13 +74,12 @@ const RelatedCard = ({ product, navigate }) => {
   const [hovered, setHovered] = useState(false);
   const image = product.images?.[0] || "https://placehold.co/600x600/f0f0f0/aaa?text=Crocs";
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : null;
-  const isOutOfStock = product.stock === 0;
+  const isOutOfStock = Number(product.stock) === 0;
 
   return (
     <div onClick={() => navigate(`/product/${product._id}`)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{ cursor: "pointer", background: "#fff", border: "1px solid #efefef", borderRadius: "4px", overflow: "hidden", transition: "all 0.25s", transform: hovered ? "translateY(-4px)" : "translateY(0)", position: "relative" }}>
       
-      {/* 👉 Nhãn HẾT HÀNG cho sản phẩm liên quan */}
       {isOutOfStock && (
          <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.6)", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ background: "#e60000", color: "#fff", padding: "6px 14px", fontWeight: 800, fontSize: "12px", letterSpacing: "1px", borderRadius: "2px" }}>TẠM HẾT HÀNG</span>
@@ -159,17 +158,19 @@ const ProductDetail = () => {
   
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : null;
   
-  // 👉 KIỂM TRA TỒN KHO 
-  const isOutOfStock = product.stock === 0;
+  // 👉 ÉP KIỂU NUMBER ĐỂ JS KHÔNG BỊ NGÁO
+  const currentStock = Number(product.stock || 0);
+  const isOutOfStock = currentStock === 0;
 
+  // 👉 SỬA LẠI HÀM NÀY: PHẢI TRẢ VỀ TRUE/FALSE ĐỂ BÁO CÁO KẾT QUẢ
   const handleAddToCart = () => {
-    if (isOutOfStock) return; // Nếu hết hàng thì chặn luôn hàm này
-    if (!selectedSize) { setSizeError(true); setTimeout(() => setSizeError(false), 2000); return; }
+    if (isOutOfStock) return false; 
+    if (!selectedSize) { setSizeError(true); setTimeout(() => setSizeError(false), 2000); return false; }
     
-    // 👉 KIỂM TRA SỐ LƯỢNG MUA SO VỚI TỒN KHO
-    if (quantity > product.stock) {
-        alert(`Rất tiếc! Trong kho chỉ còn ${product.stock} sản phẩm.`);
-        return;
+    // Check cứng số lượng nhập vào so với kho
+    if (quantity > currentStock) {
+        alert(`🛑 Rất tiếc! Trong kho chỉ còn ${currentStock} sản phẩm.`);
+        return false; // Phanh cứng lại!
     }
 
     let cart = JSON.parse(localStorage.getItem("vcrons_cart")) || [];
@@ -178,10 +179,10 @@ const ProductDetail = () => {
     
     const idx = cart.findIndex(i => i.id === newItem.id && i.size === newItem.size);
     if (idx >= 0) {
-        // Kiểm tra giỏ hàng + mua thêm có vượt tồn kho không
-        if (cart[idx].quantity + quantity > product.stock) {
-             alert(`Bạn đã có ${cart[idx].quantity} sản phẩm trong giỏ. Kho chỉ còn ${product.stock} sản phẩm.`);
-             return;
+        // Khách đã có 1 đôi trong giỏ, đòi mua thêm 2 đôi nữa -> Tổng là 3. Kho chỉ có 2 -> PHANH LẠI!
+        if (cart[idx].quantity + quantity > currentStock) {
+             alert(`🛑 Bạn đã có ${cart[idx].quantity} sản phẩm này trong giỏ. Kho hiện tại chỉ còn ${currentStock} sản phẩm nên không thể thêm được nữa!`);
+             return false; 
         }
         cart[idx].quantity += quantity; 
     } else {
@@ -191,10 +192,12 @@ const ProductDetail = () => {
     localStorage.setItem("vcrons_cart", JSON.stringify(cart));
     window.dispatchEvent(new Event('storage'));
     setAddedToCart(true); setTimeout(() => setAddedToCart(false), 2000);
+    
+    return true; // Mọi thứ trơn tru thì vẫy cờ xanh (true)
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "'Lato', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "inherit" }}>
       <div style={{ background: "#fff", borderBottom: "1px solid #efefef", padding: "13px 15px" }}>
         <div className="container" style={{ fontSize: "12px", color: "#666", fontWeight: 600 }}>
           <Link to="/" style={{ color: "#666", textDecoration: "none" }}>Trang chủ</Link> › <Link to="/shop" style={{ color: "#666", textDecoration: "none" }}>Sản phẩm</Link> › <span style={{ color: "#1a1a1a", fontWeight: 800 }}>{product.name}</span>
@@ -240,7 +243,6 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* 👉 ẨN/HIỆN NÚT MUA DỰA VÀO TỒN KHO */}
             {isOutOfStock ? (
                 <div style={{ width: "100%", padding: "15px", background: "#f5f5f5", color: "#888", border: "1px solid #ddd", borderRadius: "3px", fontWeight: 800, fontSize: "14px", letterSpacing: "1px", textAlign: "center", marginBottom: "20px" }}>
                    SẢN PHẨM TẠM THỜI HẾT HÀNG
@@ -251,13 +253,21 @@ const ProductDetail = () => {
                     <div style={{ display: "flex", border: "1px solid #ccc", borderRadius: "3px", background: "#fff" }}>
                       <button onClick={() => setQuantity(q => Math.max(1, q - 1))} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>−</button>
                       <span style={{ width: "48px", height: "54px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "16px", color: "#1a1a1a", borderLeft: "1px solid #ccc", borderRight: "1px solid #ccc" }}>{quantity}</span>
-                      <button onClick={() => setQuantity(q => Math.min(product.stock, q + 1))} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>+</button>
+                      
+                      {/* 👉 Ép cứng kiểu Number cho hàm Max/Min */}
+                      <button onClick={() => setQuantity(q => Math.min(currentStock, q + 1))} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>+</button>
                     </div>
                     <button onClick={handleAddToCart} style={{ flex: 1, background: addedToCart ? "#16a34a" : "#1a1a1a", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>{addedToCart ? "✓ ĐÃ THÊM" : "THÊM VÀO GIỎ HÀNG"}</button>
                   </div>
-                  <button onClick={() => { if(!selectedSize){setSizeError(true); return;} handleAddToCart(); navigate("/checkout"); }} style={{ width: "100%", height: "54px", background: "#e60000", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>MUA NGAY</button>
+                  
+                  {/* 👉 SỬA LẠI NÚT MUA NGAY: Nhận kết quả true thì mới nhảy trang */}
+                  <button onClick={() => { 
+                      const success = handleAddToCart(); 
+                      if (success) { navigate("/checkout"); } 
+                  }} style={{ width: "100%", height: "54px", background: "#e60000", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>MUA NGAY</button>
+                  
                   <p style={{ fontSize: "12px", color: "#888", marginTop: "10px", textAlign: "center", fontWeight: 600 }}>
-                    Chỉ còn {product.stock} sản phẩm trong kho!
+                    Chỉ còn {currentStock} sản phẩm trong kho!
                   </p>
                 </>
             )}
