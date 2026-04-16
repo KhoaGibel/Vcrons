@@ -331,8 +331,8 @@ export const CheckoutPage = () => {
           <Link to="/" style={{ display: "inline-block", background: "#1a1a1a", color: "#fff", padding: "12px 24px", borderRadius: "2px", textDecoration: "none", fontWeight: 700, fontSize: "12px", letterSpacing: "2px" }}>
             VỀ TRANG CHỦ
           </Link>
-          <Link to="/profile" style={{ display: "inline-block", background: "#fff", color: "#1a1a1a", padding: "12px 24px", borderRadius: "2px", textDecoration: "none", fontWeight: 700, fontSize: "12px", letterSpacing: "2px", border: "1px solid #ddd" }}>
-            ĐƠN HÀNG CỦA TÔI
+          <Link to="/history-order" style={{ display: "inline-block", background: "#fff", color: "#1a1a1a", padding: "12px 24px", borderRadius: "2px", textDecoration: "none", fontWeight: 700, fontSize: "12px", letterSpacing: "2px", border: "1px solid #ddd" }}>
+          ĐƠN HÀNG CỦA TÔI
           </Link>
         </div>
       </div>

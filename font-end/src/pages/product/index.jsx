@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const formatPrice = (price) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price || 0);
 
@@ -19,7 +19,6 @@ const ProductCard = ({ product }) => {
   const [hovered, setHovered] = useState(false);
   if (!product) return null;
 
-  // 👉 TỐI ƯU LOGIC HIỂN THỊ ẢNH: Ưu tiên mảng images ngoài cùng (Cloudinary)
   let displayImage = null;
   if (product.images && product.images.length > 0) {
       displayImage = product.images[0];
@@ -68,6 +67,12 @@ const ProductPage = () => {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState("default");
 
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const categoryFilter = queryParams.get("category");
+  // 👉 Lấy thêm từ khóa tìm kiếm từ URL
+  const searchFilter = queryParams.get("search"); 
+
   useEffect(() => {
     fetch("https://vcrons.onrender.com/api/products")
       .then(res => res.json())
@@ -79,18 +84,46 @@ const ProductPage = () => {
       .catch(err => { console.error("Lỗi Fetch:", err); setLoading(false); });
   }, []);
 
-  const sortedProducts = [...dbProducts].sort((a, b) => {
+  let displayedProducts = dbProducts;
+
+  // 1. Lọc theo danh mục (Classic, Crush...)
+  if (categoryFilter) {
+      displayedProducts = displayedProducts.filter(p => p.category === categoryFilter);
+  }
+
+  // 2. Lọc theo từ khóa tìm kiếm (Gõ sai/gần đúng vẫn ra)
+  if (searchFilter) {
+      const keyword = searchFilter.toLowerCase().trim(); // Đưa hết về chữ thường để so sánh cho dễ
+      displayedProducts = displayedProducts.filter(p => {
+          const nameMatch = p.name?.toLowerCase().includes(keyword); // Tên chứa từ khóa (vd: "cla" -> "Classic")
+          const catMatch = p.category?.toLowerCase().includes(keyword); // Danh mục chứa từ khóa
+          return nameMatch || catMatch;
+      });
+  }
+
+  // 3. Sắp xếp giá
+  const sortedProducts = [...displayedProducts].sort((a, b) => {
       if (sortBy === "price-asc") return (a.price || 0) - (b.price || 0);
       if (sortBy === "price-desc") return (b.price || 0) - (a.price || 0);
       return 0; 
   });
+
+  // Tạo tiêu đề thông minh
+  let pageTitle = "TẤT CẢ SẢN PHẨM";
+  if (searchFilter) {
+      pageTitle = `KẾT QUẢ TÌM KIẾM: "${searchFilter}"`;
+  } else if (categoryFilter) {
+      pageTitle = `SẢN PHẨM ${categoryFilter}`;
+  }
 
   return (
     <div className="shop-page" style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "'Lato', sans-serif" }}>
       <div className="shop-header" style={{ background: "#fff", borderBottom: "1px solid #efefef", padding: "48px 0 32px" }}>
         <div className="container text-center">
           <p style={{ fontSize: "11px", letterSpacing: "3px", textTransform: "uppercase", color: "#999", marginBottom: "8px" }}>Bộ Sưu Tập</p>
-          <h1 className="shop-title" style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 900, letterSpacing: "6px", textTransform: "uppercase", color: "#1a1a1a", margin: 0 }}>SẢN PHẨM</h1>
+          <h1 className="shop-title" style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: 900, letterSpacing: "6px", textTransform: "uppercase", color: "#1a1a1a", margin: 0 }}>
+            {pageTitle}
+          </h1>
         </div>
       </div>
 
@@ -113,7 +146,13 @@ const ProductPage = () => {
         ) : sortedProducts.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "#aaa" }}>
             <p style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</p>
-            <p style={{ fontSize: "16px", letterSpacing: "1px" }}>Không tìm thấy dữ liệu từ Backend.</p>
+            <p style={{ fontSize: "16px", letterSpacing: "1px" }}>
+              {searchFilter 
+                ? `Không tìm thấy sản phẩm nào phù hợp với từ khóa "${searchFilter}".`
+                : categoryFilter 
+                  ? `Hiện chưa có sản phẩm nào thuộc dòng ${categoryFilter}.` 
+                  : "Không tìm thấy dữ liệu từ Backend."}
+            </p>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "24px" }}>

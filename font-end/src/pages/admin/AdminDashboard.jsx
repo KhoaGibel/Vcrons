@@ -34,7 +34,7 @@ const Badge = ({ label, type }) => {
   };
   const c = colors[type] || colors.inactive;
   const labels = { active: "Hoạt động", inactive: "Ẩn", pending: "Chờ xử lý", shipping: "Đang giao", delivered: "Hoàn thành", cancelled: "Huỷ", admin: "Admin", staff: "Nhân viên", customer: "Khách hàng", banned: "Bị khoá" };
-  return <span style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}`, borderRadius: "4px", padding: "4px 10px", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px" }}>{labels[type] || label}</span>;
+  return <span style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}`, borderRadius: "4px", padding: "4px 10px", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px", whiteSpace: "nowrap" }}>{labels[type] || label}</span>;
 };
 
 const Sidebar = ({ active, setActive }) => {
@@ -616,6 +616,7 @@ const Orders = ({ orders, setOrders }) => {
           </button>
         ))}
       </div>
+      
       {/* Modal chi tiết đơn hàng */}
       {viewOrder && (
         <OrderDetailModal
@@ -675,6 +676,18 @@ const Orders = ({ orders, setOrders }) => {
                     <button onClick={() => setViewOrder(o)} style={{ padding: "6px 12px", background: "#1a1a1a", color: "#fff", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: 800, cursor: "pointer", fontFamily: "'Lato', sans-serif" }}>
                       Chi tiết
                     </button>
+                    
+                    {/* 👉 NÚT HỦY ĐƠN: Chỉ hiện khi đơn chưa hoàn thành và chưa bị hủy */}
+                    {o.status !== "delivered" && o.status !== "cancelled" && (
+                      <button onClick={() => {
+                        if (window.confirm(`Xác nhận HỦY đơn hàng #${o.orderCode || o._id.slice(-6).toUpperCase()}?`)) {
+                          updateStatus(o._id, "cancelled");
+                        }
+                      }} style={{ padding: "6px 12px", background: "#fff", color: "#dc2626", border: "1px solid #fecaca", borderRadius: "4px", fontSize: "11px", fontWeight: 800, cursor: "pointer", fontFamily: "'Lato', sans-serif" }}>
+                        Huỷ đơn
+                      </button>
+                    )}
+
                     <button onClick={() => setDeleteOrderId(o._id)} style={{ padding: "6px 12px", background: "#fef2f2", color: "#e60000", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: 800, cursor: "pointer", fontFamily: "'Lato', sans-serif" }}>
                       Xoá
                     </button>

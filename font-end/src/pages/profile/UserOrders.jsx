@@ -18,7 +18,7 @@ const Badge = ({ type }) => {
     <span style={{
       background: c.bg, color: c.color, border: `1px solid ${c.border}`,
       padding: "4px 12px", borderRadius: "3px", fontSize: "11px", fontWeight: 700,
-      letterSpacing: "0.5px",
+      letterSpacing: "0.5px", whiteSpace: "nowrap"
     }}>
       {c.label}
     </span>
@@ -31,6 +31,9 @@ const UserOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  // 👉 Thêm state để quản lý trạng thái nút đang bị bấm (tránh double click)
+  const [cancellingId, setCancellingId] = useState(null);
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -38,8 +41,6 @@ const UserOrders = () => {
     const fetchMyOrders = async () => {
       try {
         const token = localStorage.getItem("token");
-
-        // FIX 1: Gọi đúng endpoint /my-orders thay vì /orders (route admin)
         const res = await fetch("https://vcrons.onrender.com/api/orders/my-orders", {
           headers: { "Authorization": `Bearer ${token}` },
         });
@@ -50,7 +51,6 @@ const UserOrders = () => {
         }
 
         const data = await res.json();
-        // API /my-orders trả về array phẳng
         setOrders(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Lỗi lấy lịch sử đơn hàng:", err);
@@ -62,6 +62,41 @@ const UserOrders = () => {
 
     fetchMyOrders();
   }, [user, navigate]);
+
+  // 👉 HÀM XỬ LÝ HỦY ĐƠN HÀNG
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
+
+    setCancellingId(orderId);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`https://vcrons.onrender.com/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: "cancelled" }) // Gửi trạng thái mới lên server
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Lỗi khi hủy đơn!");
+      }
+
+      // Hủy thành công thì update lại cái danh sách trên màn hình luôn cho nóng
+      setOrders(prevOrders => 
+        prevOrders.map(o => o._id === orderId ? { ...o, status: "cancelled" } : o)
+      );
+      
+      alert("✅ Đã hủy đơn hàng thành công!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Lỗi: " + err.message);
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   if (!user) return null;
 
@@ -136,8 +171,8 @@ const UserOrders = () => {
                   onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
                 >
                   {/* Order header */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", padding: "14px 20px", borderBottom: "1px solid #f0f0f0" }}>
-                    <div style={{ display: "flex", gap: "24px", alignItems: "center" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", padding: "14px 20px", borderBottom: "1px solid #f0f0f0", flexWrap: "wrap", gap: "12px" }}>
+                    <div style={{ display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap" }}>
                       <div>
                         <p style={{ fontSize: "11px", color: "#aaa", margin: "0 0 2px" }}>Mã đơn hàng</p>
                         <p style={{ fontSize: "13px", fontWeight: 800, color: "#1a1a1a", margin: 0 }}>
@@ -157,11 +192,32 @@ const UserOrders = () => {
                         </p>
                       </div>
                     </div>
-                    <Badge type={order.status} />
+                    
+                    {/* 👉 Badge và nút Hủy đơn gộp chung một chỗ */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <Badge type={order.status} />
+                      
+                      {order.status === "pending" && (
+                        <button 
+                          onClick={() => handleCancelOrder(order._id)}
+                          disabled={cancellingId === order._id}
+                          style={{
+                            background: "transparent", color: "#dc2626", border: "1px solid #fecaca",
+                            padding: "4px 10px", borderRadius: "3px", fontSize: "11px", fontWeight: 700,
+                            cursor: cancellingId === order._id ? "not-allowed" : "pointer",
+                            opacity: cancellingId === order._id ? 0.6 : 1, transition: "background 0.2s"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          {cancellingId === order._id ? "Đang hủy..." : "Hủy đơn"}
+                        </button>
+                      )}
+                    </div>
+
                   </div>
 
                   {/* Order items */}
-                  {/* FIX 2: Dùng orderItems thay vì items (đúng tên field trong MongoDB model) */}
                   <div style={{ padding: "16px 20px" }}>
                     {(order.orderItems || []).length === 0 && (
                       <p style={{ color: "#aaa", fontSize: "13px" }}>Không có thông tin sản phẩm.</p>
