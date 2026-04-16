@@ -74,15 +74,23 @@ const RelatedCard = ({ product, navigate }) => {
   const [hovered, setHovered] = useState(false);
   const image = product.images?.[0] || "https://placehold.co/600x600/f0f0f0/aaa?text=Crocs";
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : null;
+  const isOutOfStock = product.stock === 0;
 
   return (
     <div onClick={() => navigate(`/product/${product._id}`)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ cursor: "pointer", background: "#fff", border: "1px solid #efefef", borderRadius: "4px", overflow: "hidden", transition: "all 0.25s", transform: hovered ? "translateY(-4px)" : "translateY(0)" }}>
+      style={{ cursor: "pointer", background: "#fff", border: "1px solid #efefef", borderRadius: "4px", overflow: "hidden", transition: "all 0.25s", transform: hovered ? "translateY(-4px)" : "translateY(0)", position: "relative" }}>
+      
+      {/* 👉 Nhãn HẾT HÀNG cho sản phẩm liên quan */}
+      {isOutOfStock && (
+         <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.6)", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ background: "#e60000", color: "#fff", padding: "6px 14px", fontWeight: 800, fontSize: "12px", letterSpacing: "1px", borderRadius: "2px" }}>TẠM HẾT HÀNG</span>
+         </div>
+      )}
+
       <div style={{ background: `url(${image}) center/cover`, backgroundColor: "#f0f0f0", aspectRatio: "4/3", position: "relative" }}>
-        {discount && <span style={{ position: "absolute", top: "10px", left: "10px", background: "#e60000", color: "#fff", fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "2px" }}>-{discount}%</span>}
+        {discount && !isOutOfStock && <span style={{ position: "absolute", top: "10px", left: "10px", background: "#e60000", color: "#fff", fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "2px" }}>-{discount}%</span>}
       </div>
       <div style={{ padding: "14px" }}>
-        {/* 👉 ĐÃ FIX MÀU: Đậm hơn cho category */}
         <p style={{ fontSize: "11px", color: "#777", textTransform: "uppercase", margin: "0 0 4px", fontWeight: 700, letterSpacing: "0.5px" }}>{product.category}</p>
         <h4 style={{ fontSize: "15px", fontWeight: 800, color: "#1a1a1a", margin: "0 0 8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{product.name}</h4>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -150,14 +158,36 @@ const ProductDetail = () => {
   const description = product.description || "Đôi dép Crocs huyền thoại. Nhẹ như không khí, bền bỉ theo thời gian.";
   
   const discount = product.originalPrice ? Math.round((1 - product.price / product.originalPrice) * 100) : null;
+  
+  // 👉 KIỂM TRA TỒN KHO 
+  const isOutOfStock = product.stock === 0;
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return; // Nếu hết hàng thì chặn luôn hàm này
     if (!selectedSize) { setSizeError(true); setTimeout(() => setSizeError(false), 2000); return; }
+    
+    // 👉 KIỂM TRA SỐ LƯỢNG MUA SO VỚI TỒN KHO
+    if (quantity > product.stock) {
+        alert(`Rất tiếc! Trong kho chỉ còn ${product.stock} sản phẩm.`);
+        return;
+    }
+
     let cart = JSON.parse(localStorage.getItem("vcrons_cart")) || [];
     const colorName = product.colors?.[0]?.name || product.color || "Mặc định";
     const newItem = { id: product._id, name: product.name, price: product.price, image: displayImages[0], color: colorName, size: selectedSize, quantity };
+    
     const idx = cart.findIndex(i => i.id === newItem.id && i.size === newItem.size);
-    if (idx >= 0) cart[idx].quantity += quantity; else cart.push(newItem);
+    if (idx >= 0) {
+        // Kiểm tra giỏ hàng + mua thêm có vượt tồn kho không
+        if (cart[idx].quantity + quantity > product.stock) {
+             alert(`Bạn đã có ${cart[idx].quantity} sản phẩm trong giỏ. Kho chỉ còn ${product.stock} sản phẩm.`);
+             return;
+        }
+        cart[idx].quantity += quantity; 
+    } else {
+        cart.push(newItem);
+    }
+    
     localStorage.setItem("vcrons_cart", JSON.stringify(cart));
     window.dispatchEvent(new Event('storage'));
     setAddedToCart(true); setTimeout(() => setAddedToCart(false), 2000);
@@ -179,24 +209,24 @@ const ProductDetail = () => {
 
           <div>
             <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
-                {product.isNewProduct && <span style={{ background: "#1a1a1a", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1.5px", padding: "3px 9px", borderRadius: "2px" }}>MỚI</span>}
-                {discount && <span style={{ background: "#e60000", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1px", padding: "3px 9px", borderRadius: "2px" }}>-{discount}%</span>}
+                {isOutOfStock && <span style={{ background: "#e60000", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1.5px", padding: "3px 9px", borderRadius: "2px" }}>HẾT HÀNG</span>}
+                {!isOutOfStock && product.isNewProduct && <span style={{ background: "#1a1a1a", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1.5px", padding: "3px 9px", borderRadius: "2px" }}>MỚI</span>}
+                {!isOutOfStock && discount && <span style={{ background: "#e60000", color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "1px", padding: "3px 9px", borderRadius: "2px" }}>-{discount}%</span>}
             </div>
             
-            {/* 👉 ĐÃ FIX MÀU: Danh mục và Tên SP nổi bật hơn */}
             <p style={{ fontSize: "12px", color: "#555", letterSpacing: "3px", textTransform: "uppercase", marginBottom: "8px", fontWeight: 700 }}>{product.category}</p>
             <h1 style={{ fontSize: "clamp(24px, 3vw, 38px)", fontWeight: 900, textTransform: "uppercase", marginBottom: "12px", color: "#1a1a1a" }}>{product.name}</h1>
             
             <StarRating rating={product.rating} count={product.reviewCount} />
             
             <div style={{ display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "28px" }}>
-               <span style={{ fontSize: "30px", fontWeight: 900, color: discount ? "#e60000" : "#1a1a1a" }}>{formatPrice(product.price)}</span>
+               <span style={{ fontSize: "30px", fontWeight: 900, color: discount && !isOutOfStock ? "#e60000" : "#1a1a1a" }}>{formatPrice(product.price)}</span>
                {product.originalPrice && <span style={{ fontSize: "18px", color: "#888", textDecoration: "line-through", fontWeight: 600 }}>{formatPrice(product.originalPrice)}</span>}
             </div>
             
             <hr style={{ border: "none", borderTop: "1px solid #f0f0f0", marginBottom: "24px" }} />
 
-            <div style={{ marginBottom: "28px" }}>
+            <div style={{ marginBottom: "28px", opacity: isOutOfStock ? 0.4 : 1, pointerEvents: isOutOfStock ? "none" : "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
                 <p style={{ fontSize: "12px", fontWeight: 800, color: sizeError ? "#e60000" : "#1a1a1a", transition: "color 0.2s", margin: 0 }}>
                     {sizeError ? "⚠ VUI LÒNG CHỌN SIZE" : `KÍCH CỠ: EU ${selectedSize || ""}`}
@@ -210,16 +240,27 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-              <div style={{ display: "flex", border: "1px solid #ccc", borderRadius: "3px", background: "#fff" }}>
-                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>−</button>
-                {/* 👉 ĐÃ FIX MÀU: Số lượng hiển thị đen nét căng */}
-                <span style={{ width: "48px", height: "54px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "16px", color: "#1a1a1a", borderLeft: "1px solid #ccc", borderRight: "1px solid #ccc" }}>{quantity}</span>
-                <button onClick={() => setQuantity(q => q + 1)} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>+</button>
-              </div>
-              <button onClick={handleAddToCart} style={{ flex: 1, background: addedToCart ? "#16a34a" : "#1a1a1a", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>{addedToCart ? "✓ ĐÃ THÊM" : "THÊM VÀO GIỎ HÀNG"}</button>
-            </div>
-            <button onClick={() => { if(!selectedSize){setSizeError(true); return;} handleAddToCart(); navigate("/checkout"); }} style={{ width: "100%", height: "54px", background: "#e60000", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>MUA NGAY</button>
+            {/* 👉 ẨN/HIỆN NÚT MUA DỰA VÀO TỒN KHO */}
+            {isOutOfStock ? (
+                <div style={{ width: "100%", padding: "15px", background: "#f5f5f5", color: "#888", border: "1px solid #ddd", borderRadius: "3px", fontWeight: 800, fontSize: "14px", letterSpacing: "1px", textAlign: "center", marginBottom: "20px" }}>
+                   SẢN PHẨM TẠM THỜI HẾT HÀNG
+                </div>
+            ) : (
+                <>
+                  <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+                    <div style={{ display: "flex", border: "1px solid #ccc", borderRadius: "3px", background: "#fff" }}>
+                      <button onClick={() => setQuantity(q => Math.max(1, q - 1))} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>−</button>
+                      <span style={{ width: "48px", height: "54px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "16px", color: "#1a1a1a", borderLeft: "1px solid #ccc", borderRight: "1px solid #ccc" }}>{quantity}</span>
+                      <button onClick={() => setQuantity(q => Math.min(product.stock, q + 1))} style={{ width: "46px", height: "54px", border: "none", background: "none", cursor: "pointer", fontSize: "20px", color: "#1a1a1a", fontWeight: 600 }}>+</button>
+                    </div>
+                    <button onClick={handleAddToCart} style={{ flex: 1, background: addedToCart ? "#16a34a" : "#1a1a1a", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>{addedToCart ? "✓ ĐÃ THÊM" : "THÊM VÀO GIỎ HÀNG"}</button>
+                  </div>
+                  <button onClick={() => { if(!selectedSize){setSizeError(true); return;} handleAddToCart(); navigate("/checkout"); }} style={{ width: "100%", height: "54px", background: "#e60000", color: "#fff", border: "none", borderRadius: "3px", fontWeight: 800, cursor: "pointer", fontSize: "14px", letterSpacing: "1px" }}>MUA NGAY</button>
+                  <p style={{ fontSize: "12px", color: "#888", marginTop: "10px", textAlign: "center", fontWeight: 600 }}>
+                    Chỉ còn {product.stock} sản phẩm trong kho!
+                  </p>
+                </>
+            )}
 
             <div style={{ marginTop: "40px", borderTop: "1px solid #f0f0f0" }}>
               <div style={{ display: "flex", borderBottom: "1px solid #f0f0f0" }}>
@@ -247,7 +288,7 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      {/* 👉 ĐÃ FIX MÀU: SẢN PHẨM LIÊN QUAN */}
+      {/* SẢN PHẨM LIÊN QUAN */}
       <div className="container" style={{ padding: "64px 15px 80px" }}>
         <h2 style={{ fontSize: "24px", fontWeight: 900, color: "#1a1a1a", textTransform: "uppercase", marginBottom: "28px", letterSpacing: "1px" }}>Sản phẩm liên quan</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>

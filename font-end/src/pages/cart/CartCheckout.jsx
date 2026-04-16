@@ -61,20 +61,49 @@ const PAYMENT_METHODS = [
 
 export const CartPage = () => {
   const [items, setItems] = useState(getSavedCart());
+  const [dbProducts, setDbProducts] = useState([]); // 👉 Thêm biến để lưu tồn kho thực tế từ DB
   const navigate = useNavigate();
+
+  // 👉 Tự động tải dữ liệu từ DB về để làm "phanh" kiểm tra tồn kho
+  useEffect(() => {
+    fetch("https://vcrons.onrender.com/api/products")
+      .then(res => res.json())
+      .then(data => {
+        const productList = Array.isArray(data) ? data : (data.products || data.data || []);
+        setDbProducts(productList);
+      })
+      .catch(err => console.error("Lỗi Fetch Products cho giỏ hàng:", err));
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("vcrons_cart", JSON.stringify(items));
     window.dispatchEvent(new Event("storage"));
   }, [items]);
 
-  const updateQty = (id, color, size, delta) =>
+  // 👉 HÀM CẬP NHẬT SỐ LƯỢNG MỚI (ĐÃ LẮP PHANH ABS)
+  const updateQty = (id, color, size, delta) => {
+    // Nếu khách đang bấm dấu "+" (tăng số lượng)
+    if (delta > 0 && dbProducts.length > 0) {
+        const currentItem = items.find(i => i.id === id && i.color === color && i.size === size);
+        const realProduct = dbProducts.find(p => p._id === id); // Lấy sản phẩm thật từ DB
+        
+        // Kiểm tra xem số lượng sau khi cộng thêm có vượt quá kho không
+        if (currentItem && realProduct) {
+            if (currentItem.quantity + delta > realProduct.stock) {
+                alert(`🛑 Rất tiếc! Kho hiện chỉ còn ${realProduct.stock} sản phẩm. Không thể mua thêm!`);
+                return; // Dừng luôn, chặn không cho cộng
+            }
+        }
+    }
+
+    // Nếu an toàn, cho phép cộng/trừ bình thường
     setItems(prev =>
       prev.map(i => (i.id === id && i.color === color && i.size === size)
         ? { ...i, quantity: Math.max(0, i.quantity + delta) }
         : i
       ).filter(i => i.quantity > 0)
     );
+  };
 
   const removeItem = (id, color, size) =>
     setItems(prev => prev.filter(i => !(i.id === id && i.color === color && i.size === size)));
@@ -83,7 +112,7 @@ export const CartPage = () => {
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "'Lato', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "inherit" }}>
       <div style={{ background: "#fff", borderBottom: "1px solid #efefef" }}>
         <div className="container" style={{ padding: "13px 15px", fontSize: "12px", color: "#aaa" }}>
           <Link to="/" style={{ color: "#aaa", textDecoration: "none" }}>Trang chủ</Link>
@@ -311,13 +340,13 @@ export const CheckoutPage = () => {
   const inputStyle = (key) => ({
     width: "100%", border: `1px solid ${errors[key] ? "#e60000" : "#ddd"}`,
     borderRadius: "3px", padding: "11px 14px", fontSize: "14px", outline: "none",
-    fontFamily: "'Lato', sans-serif", boxSizing: "border-box", color: "#1a1a1a", background: "#fff",
+    fontFamily: "inherit", boxSizing: "border-box", color: "#1a1a1a", background: "#fff",
   });
   const labelStyle = { fontSize: "12px", color: "#888", display: "block", marginBottom: "5px", fontWeight: 600 };
   const errStyle = { color: "#e60000", fontSize: "11px", marginTop: "4px", fontWeight: 600 };
 
   if (step === 2) return (
-    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "'Lato', sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center", padding: "60px 48px", background: "#fff", borderRadius: "4px", border: "1px solid #efefef", maxWidth: "440px", width: "100%" }}>
         <div style={{ width: "72px", height: "72px", background: "#f0fdf4", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "32px", border: "2px solid #bbf7d0" }}>✓</div>
         <h2 style={{ fontWeight: 900, fontSize: "24px", marginBottom: "12px", color: "#1a1a1a", letterSpacing: "1px" }}>Đặt hàng thành công!</h2>
@@ -332,7 +361,7 @@ export const CheckoutPage = () => {
             VỀ TRANG CHỦ
           </Link>
           <Link to="/history-order" style={{ display: "inline-block", background: "#fff", color: "#1a1a1a", padding: "12px 24px", borderRadius: "2px", textDecoration: "none", fontWeight: 700, fontSize: "12px", letterSpacing: "2px", border: "1px solid #ddd" }}>
-          ĐƠN HÀNG CỦA TÔI
+            ĐƠN HÀNG CỦA TÔI
           </Link>
         </div>
       </div>
@@ -340,7 +369,7 @@ export const CheckoutPage = () => {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "'Lato', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#fafafa", fontFamily: "inherit" }}>
       <div className="container" style={{ padding: "36px 15px 80px" }}>
         <div style={{ textAlign: "center", marginBottom: "36px" }}>
           <Link to="/" style={{ textDecoration: "none" }}>
@@ -465,7 +494,6 @@ export const CheckoutPage = () => {
                 ))}
               </div>
 
-              {/* 👉 MÃ QR VÀ HƯỚNG DẪN THANH TOÁN 👈 */}
               {payment && (
                 <div style={{ marginTop: "16px", padding: "24px", background: "#fcfcfc", border: "1px dashed #ccc", borderRadius: "6px", textAlign: "center" }}>
                   <p style={{ fontSize: "14px", color: "#1a1a1a", marginBottom: "16px", fontWeight: 700 }}>
